@@ -1,3 +1,6 @@
 [submodule "components/ESP32_JWT_Auth"]
 	path = components/ESP32_JWT_Auth
 	url = https://github.com/euginfrancis/ESP32_JWT_Auth
+[submodule "components/cJSON"]
+	path = components/cJSON
+	url = https://github.com/DaveGamble/cJSON
