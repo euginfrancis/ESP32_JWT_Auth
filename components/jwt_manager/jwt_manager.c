@@ -3,7 +3,7 @@
 #include "esp_sntp.h"
 #include "esp_log.h"
 #include "esp_http_client.h"
-//#include "cJSON.h"
+#include "cJSON.h"
 #include "jwt_manager.h"
 #include "mbedtls/rsa.h"
 #include "mbedtls/pem.h"
@@ -57,31 +57,30 @@ static void encodeUrl(char *encoded, unsigned char *string, size_t len)
 {
     size_t i;
     char *p = encoded;
-
-    for (i = 0; i < len - 2; i += 3)
+    
+    for (i = 0; i < len -2; i += 3)
     {
-        *p++ = base64EncBuf[(string[i] >> 2) & 0x3F];
-        *p++ = base64EncBuf[((string[i] & 0x3) << 4) | ((int)(string[i + 1] & 0xF0) >> 4)];
-        *p++ = base64EncBuf[((string[i + 1] & 0xF) << 2) | ((int)(string[i + 2] & 0xC0) >> 6)];
-        *p++ = base64EncBuf[string[i + 2] & 0x3F];
+        *p++ = base64EncBuff[(string[i] >> 2) & 0x3F];
+        *p++ = base64EncBuff[((string[i] & 0x3) << 4) | ((int)(string[i + 1] & 0xF0) >> 4)];
+        *p++ = base64EncBuff[((string[i + 1] & 0xF) << 2) | ((int)(string[i + 2] & 0xC0) >> 6)];
+        *p++ = base64EncBuff[string[i + 2] & 0x3F];
     }
 
     if (i < len)
     {
-        *p++ = base64EncBuf[(string[i] >> 2) & 0x3F];
+        *p++ = base64EncBuff[(string[i] >> 2) & 0x3F];
         if (i == (len - 1))
-            *p++ = base64EncBuf[((string[i] & 0x3) << 4)];
+            *p++ = base64EncBuff[((string[i] & 0x3) << 4)];
         else
         {
-            *p++ = base64EncBuf[((string[i] & 0x3) << 4) | ((int)(string[i + 1] & 0xF0) >> 4)];
-            *p++ = base64EncBuf[((string[i + 1] & 0xF) << 2)];
+            *p++ = base64EncBuff[((string[i] & 0x3) << 4) | ((int)(string[i + 1] & 0xF0) >> 4)];
+            *p++ = base64EncBuff[((string[i + 1] & 0xF) << 2)];
         }
     }
-
     *p++ = '\0';
 }
 
-void concatStrings(char **str1, char *str2) {
+static void concatStrings(char **str1, char *str2) {
     if(str2 == NULL){
         return;
     }
@@ -115,29 +114,29 @@ static time_t getTime() {
 
     while (sntp_get_sync_status() != SNTP_SYNC_STATUS_COMPLETED) {
         ESP_LOGI(TAG, "Waiting For Time");
-       // vTaskDelay(pdMS_TO_TICKS(1000)); 
+        vTaskDelay(pdMS_TO_TICKS(1000)); 
     }
 
-    //struct tm timeinfo;
+    struct tm timeinfo;
     time_t now = time(NULL); 
-    //localtime_r(&now, &timeinfo); 
+    localtime_r(&now, &timeinfo); 
 
-    //ESP_LOGI(TAG, "Current time: %s", asctime(&timeinfo));
+    ESP_LOGI(TAG, "Current time: %s", asctime(&timeinfo));
 
     return now; 
 }
 
-static char* base64_encode(const unsigned char *input, size_t length) {
+static char* base64_encode(unsigned char *input, size_t length) {
     size_t output_length;
-    char *output = (char *)malloc(MBEDTLS_BASE64_ENCODE_OUTPUT(length));
+    char *output = CREATE_CHAR_BUFFER(MBEDTLS_BASE64_ENCODE_OUTPUT(length));
     if (!output) {
         ESP_LOGE(TAG, "Failed to allocate memory for Base64 output");
         return NULL;
     }
-    encodeUrl(output,input ,MBEDTLS_BASE64_ENCODE_OUTPUT(length));
+    encodeUrl(output,input,length);
     return output;
 }
-/*
+
 void jwt_encoded_genrate_header(JWTConfig *myConfig){
 
     cJSON *jsonPtr = cJSON_CreateObject();
@@ -166,12 +165,11 @@ void jwt_encoded_genrate_header(JWTConfig *myConfig){
     myConfig->encHeadPayload = myConfig->encHeader;
     ESP_LOGI(TAG, "Encoded Header: %s , %s", myConfig->encHeadPayload,myConfig->header);
     free(myConfig->header);
-
     cJSON_Delete(jsonPtr);
 }
-*/
+
 void jwt_encoded_genrate_payload(JWTConfig *myConfig){
-   /* time_t now = time(NULL); 
+    time_t now =  getTime(); 
     cJSON *jsonPtr = cJSON_CreateObject();
 
     if (!jsonPtr) {
@@ -183,8 +181,8 @@ void jwt_encoded_genrate_payload(JWTConfig *myConfig){
     cJSON_AddStringToObject(jsonPtr, "sub", myConfig->client_email);
 
     cJSON_AddStringToObject(jsonPtr, "aud", "https://oauth2.googleapis.com/token");
-   // cJSON_AddNumberToObject(jsonPtr, "iat", (int)now);
-    //cJSON_AddNumberToObject(jsonPtr, "exp", (int)(now + 3600));
+    cJSON_AddNumberToObject(jsonPtr, "iat", (int)now);
+    cJSON_AddNumberToObject(jsonPtr, "exp", (int)(now + 3600));
     cJSON_AddStringToObject(jsonPtr, "scope", "https://www.googleapis.com/auth/cloud-platform https://www.googleapis.com/auth/userinfo.email");
 
     myConfig->payload = cJSON_PrintUnformatted(jsonPtr); 
@@ -196,7 +194,7 @@ void jwt_encoded_genrate_payload(JWTConfig *myConfig){
     ESP_LOGI(TAG, "Encoded Payload: %s , %s", myConfig->payload,myConfig->encHeadPayload);
 
     free(myConfig->encPayload);  
-    cJSON_Delete(jsonPtr); */
+    cJSON_Delete(jsonPtr); 
     return;
 }
 
@@ -275,7 +273,7 @@ void sign_jwt(JWTConfig *myConfig){
 static esp_err_t _http_event_handler(esp_http_client_event_t *evt) {
     return ESP_OK;
 }
-/*
+
 char* exchangeJwtForAccessToken(const char* signed_jwt) {
     const char* auth_url = "https://www.googleapis.com/oauth2/v4/token";
 
@@ -321,4 +319,4 @@ char* exchangeJwtForAccessToken(const char* signed_jwt) {
     esp_http_client_cleanup(client);
     return NULL; 
 }
-*/
+

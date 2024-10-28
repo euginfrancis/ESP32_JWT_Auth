@@ -53,7 +53,7 @@ void app_main(void) {
 
     wifi_init_sta();
 
-    //ESP_LOGI(TAG,"wifi connect status :%s" ,is_Wifi_Connected() ? "Connected":"Disconnected");
+    ESP_LOGI(TAG,"wifi connect status :%s" ,is_Wifi_Connected() ? "Connected":"Disconnected");
 
     myConfig = new_JWTConfig();
     myConfig->client_email = CLIENT_EMAIL;
@@ -61,10 +61,10 @@ void app_main(void) {
     myConfig->signatureSize = 256;
     myConfig->private_key = PRIVATE_KEY;
 
-    //jwt_encoded_genrate_header(myConfig);
-    //jwt_encoded_genrate_payload(myConfig);
-    //jwt_gen_hash(myConfig);
-    //sign_jwt(myConfig);
+    jwt_encoded_genrate_header(myConfig);
+    jwt_encoded_genrate_payload(myConfig);
+    jwt_gen_hash(myConfig);
+    sign_jwt(myConfig);
 
     while (true) {
         //vTaskDelay(pdMS_TO_TICKS(1000));  

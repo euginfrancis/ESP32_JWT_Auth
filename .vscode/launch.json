@@ -2,14 +2,14 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "type": "gdbtarget",
-      "request": "attach",
-      "name": "Eclipse CDT GDB Adapter"
-    },
-    {
-      "type": "espidf",
-      "name": "Launch",
-      "request": "launch"
+      "name": "Wokwi GDB",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/EPS32_JWT_Auth.elf",
+      "cwd": "${workspaceFolder}",
+      "MIMode": "gdb",
+      "miDebuggerPath": "${command:espIdf.getToolchainGdb}",
+      "miDebuggerServerAddress": "localhost:3333"
     }
   ]
 }

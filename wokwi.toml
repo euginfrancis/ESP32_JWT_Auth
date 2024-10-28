@@ -1,0 +1,5 @@
+[wokwi]
+version = 1
+elf = "build/EPS32_JWT_Auth.elf"
+firmware = "build/EPS32_JWT_Auth.bin"
+gdbServerPort=3333

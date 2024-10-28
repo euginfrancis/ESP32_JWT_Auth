@@ -3,10 +3,10 @@
 #include <math.h> 
 #include <time.h>
 
-#define MBEDTLS_BASE64_ENCODE_OUTPUT(length) ((((length) + 2) / 3) * 4 + 1)
+#define MBEDTLS_BASE64_ENCODE_OUTPUT(len) ((((len) + 2) / 3 * 4) + 1)
 #define CREATE_CHAR_BUFFER(size) ((char *)malloc(size))
 
-static const char base64EncBuf[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+static const char base64EncBuff[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
 static const char esp_signer_gauth_pgm_str_1[]  = "type";
 static const char esp_signer_gauth_pgm_str_2[]  = "service_account";
@@ -116,7 +116,7 @@ typedef struct {
     size_t hashSize;
 } JWTConfig;
 
-void concatStrings(char **str1, char *str2);
+static void concatStrings(char **str1, char *str2);
 JWTConfig *new_JWTConfig();
 char* exchangeJwtForAccessToken(const char* signed_jwt);
 void jwt_encoded_genrate_header(JWTConfig *myConfig);
@@ -124,5 +124,6 @@ void jwt_encoded_genrate_payload(JWTConfig *myConfig);
 void jwt_gen_hash(JWTConfig *myConfig);
 void sign_jwt(JWTConfig *myConfig);
 static time_t getTime();
+static void encodeUrl(char *encoded, unsigned char *string, size_t len);
 
-#endif // JWT_MANAGER_H
+#endif 
