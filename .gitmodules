@@ -1,0 +1,3 @@
+[submodule "components/ESP32_JWT_Auth"]
+	path = components/ESP32_JWT_Auth
+	url = https://github.com/euginfrancis/ESP32_JWT_Auth
