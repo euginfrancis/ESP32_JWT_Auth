@@ -30,3 +30,35 @@ Before you begin, ensure you have the following:
    ```bash
    git clone https://github.com/euginfrancis/ESP32_JWT_Auth.git
    cd ESP32_JWT_Auth
+2. **Set Up ESP-IDF Environment** 🌟
+
+   Follow the instructions in the ESP-IDF documentation to set up your development environment.
+
+3. **Configure Wi-Fi Credentials** 📶
+
+   Edit the sdkconfig or the respective configuration file to set your Wi-Fi SSID and password.
+
+4. **Build and Flash the Project** 🔄
+
+   Use the following commands in the terminal:
+
+   ```bash
+   idf.py menuconfig    # Configure project settings
+   idf.py build          # Build the project
+   idf.py flash          # Flash the project to your ESP32
+5. **Example Usage** 📖
+   This project includes an example to demonstrate JWT authentication. Follow the instructions in the code comments to test the functionality.
+
+## How It Works 🔍
+-- **Authentication Flow**: The ESP32 sends a request to an authentication server to obtain a JWT. 📨
+-- **Token Storage**: The JWT is securely stored in memory for subsequent use. 💾
+--- **API Calls**: The ESP32 includes the JWT in the HTTP headers for authenticating further requests. 📢
+
+## Contributing 🤝
+We welcome contributions! If you have suggestions or improvements, feel free to open an issue or submit a pull request.
+
+## License 📜
+This project is licensed under the MIT License. See the LICENSE file for more details.
+
+## Support ❓
+For questions or assistance, please open an issue in this repository, and we’ll be happy to help! 🤗
