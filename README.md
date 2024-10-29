@@ -59,7 +59,7 @@ Before you begin, ensure you have the following:
 We welcome contributions! If you have suggestions or improvements, feel free to open an issue or submit a pull request.
 
 ## License 📜
-This project is licensed under the MIT License. See the LICENSE file for more details.
+This project is licensed under the [MIT License](LICENSE). See the LICENSE file for more details.
 
 ## Support ❓
 For questions or assistance, please open an issue in this repository, and we’ll be happy to help! 🤗
