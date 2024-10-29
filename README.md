@@ -50,9 +50,10 @@ Before you begin, ensure you have the following:
    This project includes an example to demonstrate JWT authentication. Follow the instructions in the code comments to test the functionality.
 
 ## How It Works 🔍
--- **Authentication Flow**: The ESP32 sends a request to an authentication server to obtain a JWT. 📨
--- **Token Storage**: The JWT is securely stored in memory for subsequent use. 💾
---- **API Calls**: The ESP32 includes the JWT in the HTTP headers for authenticating further requests. 📢
+
+- **Authentication Flow**: The ESP32 sends a request to an authentication server to obtain a JWT. 📨
+- **Token Storage**: The JWT is securely stored in memory for subsequent use. 💾
+- **API Calls**: The ESP32 includes the JWT in the HTTP headers for authenticating further requests. 📢
 
 ## Contributing 🤝
 We welcome contributions! If you have suggestions or improvements, feel free to open an issue or submit a pull request.
