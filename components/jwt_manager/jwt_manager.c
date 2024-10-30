@@ -114,17 +114,14 @@ static void concatStrings(char **str1, char *str2) {
     }
     
     size_t totalLength = strlen(*str1) + strlen(str2) + 1;
-    char *combined = CREATE_CHAR_BUFFER(totalLength);
+    char *combined = REALLOC_CHAR_BUFFER(*str1,totalLength);
 
     if (combined == NULL) {
         return; 
     }
     strcpy(combined, *str1); 
     strcat(combined, str2);
-
-    if(strlen(*str1) > 0){
-        free(*str1);
-    }
+    
     *str1 = combined;
 }
 
@@ -318,7 +315,7 @@ static esp_err_t _http_event_handler(esp_http_client_event_t *evt) {
             if (!esp_http_client_is_chunked_response(evt->client)) {
                 char *response = (char *)malloc(evt->data_len + 1);
                 memcpy(response, evt->data, evt->data_len);
-                response[evt->data_len] = 0; // Null-terminate the response
+                response[evt->data_len] = 0;
                 ESP_LOGI(TAG, "HTTP Response: %s", response);
                 free(response);
             }else{
@@ -340,7 +337,7 @@ static esp_err_t _http_event_handler(esp_http_client_event_t *evt) {
                     memcpy(response_data + total_len, evt->data, evt->data_len);
                 }
                 total_len += evt->data_len;
-                response_data[total_len] = 0; // Null-terminate the response
+                response_data[total_len] = 0; 
                 ESP_LOGE(TAG, "Total responce length : %d",total_len);
             }
             break;
@@ -351,7 +348,6 @@ static esp_err_t _http_event_handler(esp_http_client_event_t *evt) {
                 if (json_response == NULL) {
                     ESP_LOGE(TAG, "Failed to parse JSON response");
                 } else {
-                    // Access the token or other fields from the JSON
                     const char *token = cJSON_GetObjectItem(json_response, "access_token")->valuestring;
                     ESP_LOGI(TAG, "JWT Token: %s", token);
                     cJSON_Delete(json_response);
@@ -361,10 +357,10 @@ static esp_err_t _http_event_handler(esp_http_client_event_t *evt) {
                 total_len = 0;
             }
             break;
-        case HTTP_EVENT_HEADERS_SENT: // Handle the new event
+        case HTTP_EVENT_HEADERS_SENT: 
             ESP_LOGI(TAG, "HTTP_EVENT_HEADERS_SENT");
             break;
-        default: // Optional: handle unknown events
+        default: 
             ESP_LOGI(TAG, "Unhandled event: %d", evt->event_id);
             break;
         }
@@ -388,70 +384,9 @@ void exchangeJwtForAccessToken(JWTConfig *myConfig) {
     esp_http_client_set_header(client, "Content-Type", "application/x-www-form-urlencoded");
 
     esp_err_t err = esp_http_client_perform(client);
-    if (err == ESP_OK) {  /*      
-        ESP_LOGI(TAG, "HTTP Status = %d, content_length = %lld", 
-                 esp_http_client_get_status_code(client),
-                 esp_http_client_get_content_length(client));
-        
-        char* response = malloc(1024); 
-        if (response) {
-            esp_http_client_read(client, response, 1024);
-            response[1023] = '\0';
-            char *content_type = NULL;
-            int err = esp_http_client_get_header(client, "Content-Type", &content_type);
-            if (err == ESP_OK && content_type) {
-                ESP_LOGI(TAG, "Content-Type: %s", content_type);
-                // Free the allocated memory for content_type if necessary
-                free(content_type);
-            } else {
-                ESP_LOGI(TAG, "No Content-Type header found or error retrieving it");
-            }
-            ESP_LOGI(TAG, "Http Response: %s",response);
-            cJSON *json = cJSON_Parse(response);
-            const cJSON *access_token = cJSON_GetObjectItemCaseSensitive(json, "access_token");
-            char *token = NULL;
-            if (cJSON_IsString(access_token) && (access_token->valuestring != NULL)) {
-                token = strdup(access_token->valuestring); 
-            }
-            cJSON_Delete(json);
-            free(response);
-            esp_http_client_cleanup(client);
-            ESP_LOGI(TAG, "Access Token: %s", token);
-        }*/
-       ESP_LOGI(TAG, "HTTP Status = %d", esp_http_client_get_status_code(client));
-        char* response = malloc(1024); 
-        memset(response, 0, 1024);
-        int total_read = 0;
-        int read_len;
-
-        // Read response body in a loop
-        while ((read_len = esp_http_client_read(client, response + total_read, sizeof(response) - total_read - 1)) > 0) {
-            total_read += read_len;
-        }
-        // Read the response
-     
-        if (total_read >= 0) {
-            response[total_read] = '\0'; // Null-terminate the response
-            ESP_LOGI(TAG, "Response: %s", response);
-
-            // Optionally parse the JSON response
-            cJSON *json = cJSON_Parse(response);
-            if (json) {
-                cJSON *access_token = cJSON_GetObjectItem(json, "access_token");
-                if (cJSON_IsString(access_token) && (access_token->valuestring != NULL)) {
-                    ESP_LOGI(TAG, "Access Token: %s", access_token->valuestring);
-                }
-                cJSON_Delete(json);
-            } else {
-                ESP_LOGE(TAG, "Failed to parse JSON response");
-            }
-            free(response);
-        }
-
-    } else {
+    if (err != ESP_OK) {  
         ESP_LOGE(TAG, "HTTP GET request failed: %s", esp_err_to_name(err));
     }
-
     esp_http_client_cleanup(client);
 }
 
