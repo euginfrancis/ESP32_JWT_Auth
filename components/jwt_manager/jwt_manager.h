@@ -33,7 +33,6 @@
 
 #define MBEDTLS_BASE64_ENCODE_OUTPUT(len) ((((len) + 2) / 3 * 4) + 1)
 #define CREATE_CHAR_BUFFER(size) ((char *)malloc(size))
-#define REALLOC_CHAR_BUFFER(data,size) ((char *)realloc(data,size))
 static const char base64EncBuff[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 static const char googleapis_auth_url[] = "https://www.googleapis.com/oauth2/v4/token";
 

@@ -114,14 +114,17 @@ static void concatStrings(char **str1, char *str2) {
     }
     
     size_t totalLength = strlen(*str1) + strlen(str2) + 1;
-    char *combined = REALLOC_CHAR_BUFFER(*str1,totalLength);
+    char *combined = CREATE_CHAR_BUFFER(totalLength);
 
     if (combined == NULL) {
         return; 
     }
     strcpy(combined, *str1); 
     strcat(combined, str2);
-    
+
+    if(strlen(*str1) > 0){
+        free(*str1);
+    }
     *str1 = combined;
 }
 
