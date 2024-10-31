@@ -33,38 +33,12 @@
 #include "wifi_manager.h"  
 #include "jwt_manager.h"
 
-#define CLIENT_EMAIL "pubsub@esp32iot-438916.iam.gserviceaccount.com"   
+#define CLIENT_EMAIL "YOUR CLIENT_EMAIL"   
 #include <stdio.h>
 
 const char PRIVATE_KEY[] = "-----BEGIN PRIVATE KEY-----\n"
-                            "MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCtFXIzkl6qMDh7\n"
-                            "Kmx0/ldMpvOL1sSUqKIN95+UeTbjQwRE5e/W142psJMttAHdsy1DsCAE4U5Jj/2L\n"
-                            "+wWbt4F8eYls9nIlQIdKRrlJnfPsL6AYicfAkj1W/uoz9ZkZgEkbtr4hEoyVAJJF\n"
-                            "w7fvnTKkT9Q12IZhX3n2OAricf3pMUprGBSQi2ncgGN1fDFBM9cf90zUVOQlOjdi\n"
-                            "rBo9Y584jKNPvuZDFlPfGZuspPsNFmhz+5xjVlbSQiojACAjeaoVt2LC+xc4gjX3\n"
-                            "nKJfUfGgjFR60JxqGVK81iKP2IXIAR520nG+5M20RR664ympdvUq4Sd5kk7RR0UQ\n"
-                            "LO3MsTrzAgMBAAECggEAQF3dXnhsY/YSyxr3wnpjlMnxgGuaJ36e5XrVCa4aT2G4\n"
-                            "0LaB/u+iaxyTX0e1+fCMQMPa5HW1W34E2G29pC8WJGg+RxtPT7MznNe4SDxJXehI\n"
-                            "LVfvxRmdXiDmj/Qhv24JwhivlDUFutO/kdo7KQzYrGpTjMK9FrEe9gXZZmTl/DYO\n"
-                            "jjQFxcyu0VM5eiO1DzJ/qniOuKB8s3Apxee6713Fwl+zFHeWzGbZ8RY24wWDFcvD\n"
-                            "f7cO35Pn+8pRDUbKzsOPpIlrz1Ad/SHUKNCMPhPqePD3JwM+/K0Ht0/w6vtkqz2l\n"
-                            "/bvRJyAquey6hKrGyrcBO2GWPYoWjoJIpNzHiP2RoQKBgQDvaX4PtoWmAZ0XOyrr\n"
-                            "Fb5u17X2L8FblnPpqs2gruNhArczO2zMfF4fgIAp5kL+Sb3Ew3jfz+MAFPIWF1JW\n"
-                            "f06KxBkSEvwb9/iL4tHBHyplh61Kqn5rYt9slusm38zF8I+yhhVWoE7A4UeviP1U\n"
-                            "pVC3Kum7Y87otPlE9TX5/XwZ3QKBgQC5E3kfAhRWgoILbPnDrmzj4aa1ixTNCyxY\n"
-                            "qZwqaLi974bPyezkqzlgnMfUagdWg+pAVBeHME6Udp5i3u8e6o+5WKp0OY4oBwVC\n"
-                            "nIlzZQrYTdvNWpGSYPiPl73FqsprR2PLszWIqjCFeHPURPWNMjiwATKFWHA1EoGa\n"
-                            "sGYJeISjDwKBgFoXop6bGtQLi2fwlgf9GLpxZkIMWoDyrw/hfJvY9CvPb81RsXGJ\n"
-                            "44mLO6+IvPEgIs9ml5fxjQS83RS/FfcC1TWW8bBBgKmtuNQ7OJ+p8LRgSC/u1L/o\n"
-                            "Zxdf+4GXemGKUyjlGCaPENO4ctd1f49Y3nTvKyGfP3+Gir8OX4+Bei/pAoGAQ42B\n"
-                            "CzlmFQGD2AnJzIvxAOiPQfpm+ESYxi/6aVxZ+jHggh2RExIQWlw/cB/XV9PEgABx\n"
-                            "qg2O0Q/O1gXLP/ybwypC5TNQ2PlfCSY74VvDLpqUnQru0YAFmdvoD6s8QRYIrgRW\n"
-                            "iPCdz0nc9WDKQ+RN3qhBOXzDUAvWNJEoXVKZDy8CgYB5i8UFMpEwDRSXD3Kcwf+M\n"
-                            "LfOqvCZRiH0jaYmE/AvkkMoPCFoNQewjOLEVP8+ty9V65e1Se3ti8TgY6hWPU+V6\n"
-                            "RneAjDVIU39z0rmf603vNmncf69Ky8lVw2neXuY8ApGWmphTT41lcia+THjPKN+g\n"
-                            "j6jP+daZg5uhDqjZ0Z2l/w==\n"
+                            "YOUR PRIVATE KEY"
                             "-----END PRIVATE KEY-----\n";
-
 
 static const char *TAG = "main";
 JWTConfig *myConfig;
@@ -82,6 +56,7 @@ void app_main(void) {
     ESP_LOGI(TAG,"wifi connect status :%s" ,is_Wifi_Connected() ? "Connected":"Disconnected");
 
     myConfig = new_JWTConfig();
+    myConfig->init_JWT_Auth(myConfig);
     myConfig->client_email = CLIENT_EMAIL;
     myConfig->hashSize = 32;
     myConfig->signatureSize = 256;

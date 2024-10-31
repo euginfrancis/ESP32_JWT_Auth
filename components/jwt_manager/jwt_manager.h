@@ -30,6 +30,7 @@
 #include <time.h>
 #include "esp_err.h"
 #include "esp_http_client.h"
+#include "cJSON.h"
 
 #define MBEDTLS_BASE64_ENCODE_OUTPUT(len) ((((len) + 2) / 3 * 4) + 1)
 #define CREATE_CHAR_BUFFER(size) ((char *)malloc(size))
@@ -128,7 +129,7 @@ static const char esp_signer_pgm_str_47[]  = "code: ";
 static const char esp_signer_pgm_str_48[]  = ", message: ";
 static const char esp_signer_pgm_str_49[]  = "ready";
 
-typedef struct {
+typedef struct JWTConfig{
     char *header;
     char *payload;
     char *encHeader;
@@ -137,13 +138,19 @@ typedef struct {
     char *encSignature;
     char *signature;
     char *jwt;
+    bool token_ready;
+    bool token_error;
     const char *private_key;
     const char *client_email;
+    cJSON *Access_Token_Response;
+    const char *Access_Token;
     size_t signatureSize;
     char *hash;
     size_t hashSize;
+    void (*init_JWT_Auth)(struct JWTConfig*);
 } JWTConfig;
 
+void init_JWT_Auth(JWTConfig *myConfig);
 static void concatStrings(char **str1, char *str2);
 JWTConfig *new_JWTConfig();
 void exchangeJwtForAccessToken(JWTConfig *myConfig);

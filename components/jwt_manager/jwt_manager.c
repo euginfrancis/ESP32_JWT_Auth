@@ -129,9 +129,14 @@ static void concatStrings(char **str1, char *str2) {
 }
 
 JWTConfig *new_JWTConfig() {
-    return malloc(sizeof(JWTConfig));
+    JWTConfig *myConfig = malloc(sizeof(JWTConfig));
+    myConfig->init_JWT_Auth = init_JWT_Auth;
+    return myConfig;
 }
-
+void init_JWT_Auth(JWTConfig *myConfig){
+    myConfig->token_error = false;
+    myConfig->token_ready = false;
+}
 static time_t getTime() {
     ESP_LOGI(TAG, "Configuring time...");
 
@@ -191,7 +196,7 @@ void jwt_encoded_genrate_header(JWTConfig *myConfig){
         return;
     }
     myConfig->encHeadPayload = myConfig->encHeader;
-    ESP_LOGI(TAG, "Encoded Header: %s , %s", myConfig->encHeadPayload,myConfig->header);
+   // ESP_LOGI(TAG, "Encoded Header: %s , %s", myConfig->encHeadPayload,myConfig->header);
     free(myConfig->header);
     cJSON_Delete(jsonPtr);
 }
@@ -219,7 +224,7 @@ void jwt_encoded_genrate_payload(JWTConfig *myConfig){
     concatStrings(&myConfig->encHeadPayload,esp_signer_gauth_pgm_str_35);
     concatStrings(&myConfig->encHeadPayload,myConfig->encPayload);
 
-    ESP_LOGI(TAG, "Encoded Payload: %s , %s", myConfig->payload,myConfig->encHeadPayload);
+    //ESP_LOGI(TAG, "Encoded Payload: %s , %s", myConfig->payload,myConfig->encHeadPayload);
 
     free(myConfig->encPayload);  
     cJSON_Delete(jsonPtr); 
@@ -295,12 +300,13 @@ void sign_jwt(JWTConfig *myConfig){
     free(myConfig->signature);
     concatStrings(&myConfig->jwt,myConfig->encSignature);
     free(myConfig->encSignature);
-    ESP_LOGI(TAG, "JWT : %s",myConfig->jwt);
+    //ESP_LOGI(TAG, "JWT : %s",myConfig->jwt);
     return; 
 }
 
 
 static esp_err_t _http_event_handler(esp_http_client_event_t *evt) {
+    JWTConfig *myConfig = (JWTConfig *)evt->user_data;
     static int total_len = 0;
     static char *response_data = NULL;
     
@@ -341,19 +347,21 @@ static esp_err_t _http_event_handler(esp_http_client_event_t *evt) {
                 }
                 total_len += evt->data_len;
                 response_data[total_len] = 0; 
-                ESP_LOGE(TAG, "Total responce length : %d",total_len);
+                ESP_LOGI(TAG, "Total responce length : %d",total_len);
             }
             break;
         case HTTP_EVENT_DISCONNECTED:
+           ESP_LOGI(TAG, "HTTP_EVENT_DISCONNETED");
            if (response_data != NULL) {
-                ESP_LOGI(TAG, "JWT Token:%s", response_data);
+                //ESP_LOGI(TAG, "Response: %s", response_data);
                 cJSON *json_response = cJSON_Parse(response_data);
                 if (json_response == NULL) {
                     ESP_LOGE(TAG, "Failed to parse JSON response");
+                    myConfig->token_error = true;
                 } else {
-                    const char *token = cJSON_GetObjectItem(json_response, "access_token")->valuestring;
-                    ESP_LOGI(TAG, "JWT Token: %s", token);
-                    cJSON_Delete(json_response);
+                    myConfig->Access_Token_Response = json_response;
+                    myConfig->token_ready = true;
+                    ESP_LOGI(TAG, "Token parsed");
                 }
                 free(response_data);
                 response_data = NULL;
@@ -363,6 +371,9 @@ static esp_err_t _http_event_handler(esp_http_client_event_t *evt) {
         case HTTP_EVENT_HEADERS_SENT: 
             ESP_LOGI(TAG, "HTTP_EVENT_HEADERS_SENT");
             break;
+        case HTTP_EVENT_ON_FINISH:
+            ESP_LOGI(TAG, "HTTP_EVENT_ON_FINISH");
+        break;
         default: 
             ESP_LOGI(TAG, "Unhandled event: %d", evt->event_id);
             break;
@@ -374,22 +385,41 @@ void exchangeJwtForAccessToken(JWTConfig *myConfig) {
         .url = googleapis_auth_url,
         .event_handler = _http_event_handler,
         .cert_pem = cacert, 
+        .user_data = myConfig
     };
     esp_http_client_handle_t client = esp_http_client_init(&config);
     char post_data[1024];
     snprintf(post_data, sizeof(post_data), 
              "grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=%s", myConfig->jwt);
 
-    ESP_LOGI(TAG, "Http POST DATA:%s",post_data);
+    //ESP_LOGI(TAG, "Http POST DATA:%s",post_data);
 
     esp_http_client_set_method(client, HTTP_METHOD_POST);
     esp_http_client_set_post_field(client, post_data, strlen(post_data));
     esp_http_client_set_header(client, "Content-Type", "application/x-www-form-urlencoded");
 
+    ESP_LOGI(TAG,"HTTP POST request...");    
+
     esp_err_t err = esp_http_client_perform(client);
+
     if (err != ESP_OK) {  
-        ESP_LOGE(TAG, "HTTP GET request failed: %s", esp_err_to_name(err));
+        ESP_LOGE(TAG, "HTTP POST request failed: %s", esp_err_to_name(err));
     }
+
     esp_http_client_cleanup(client);
+
+    while(!((myConfig->token_ready) | (myConfig->token_error)));
+    
+    if(myConfig->token_ready){
+        cJSON *nameItem = cJSON_GetObjectItem(myConfig->Access_Token_Response, "access_token");
+        if (nameItem != NULL && cJSON_IsString(nameItem)) {
+            myConfig->Access_Token = cJSON_GetStringValue(nameItem);
+            ESP_LOGI(TAG, "Acces Token parsed");
+            cJSON_Delete(myConfig->Access_Token_Response);
+        } else {
+            ESP_LOGE(TAG, "Can't find access_token item");
+        }
+    }
+    free(myConfig->jwt);
 }
 

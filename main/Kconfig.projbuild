@@ -1,5 +1,4 @@
-menu "Example Configuration"
-
+menu "Wifi Configuration"
     config ESP_WIFI_SSID
         string "WiFi SSID"
         default "Wokwi-GUEST"
@@ -63,5 +62,11 @@ menu "Example Configuration"
         config ESP_WIFI_AUTH_WAPI_PSK
             bool "WAPI PSK"
     endchoice
+endmenu
 
+menu "JWT Configuration"
+    config JWT_PRIVATE_KEY
+        default "NULL"
+        help
+            Your private key value for authentication
 endmenu
