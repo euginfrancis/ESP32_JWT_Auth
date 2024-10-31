@@ -178,8 +178,8 @@ void jwt_encoded_genrate_header(JWTConfig *myConfig){
         return;
     }
 
-    cJSON_AddItemToObject(jsonPtr, "alg", cJSON_CreateString("RS256")); // "alg": "RS256"
-    cJSON_AddItemToObject(jsonPtr, "typ", cJSON_CreateString("JWT"));   // "typ": "JWT"
+    cJSON_AddItemToObject(jsonPtr, esp_signer_gauth_pgm_str_20, cJSON_CreateString("RS256")); 
+    cJSON_AddItemToObject(jsonPtr, esp_signer_gauth_pgm_str_22, cJSON_CreateString("JWT"));   
 
     myConfig->header = cJSON_PrintUnformatted(jsonPtr);
     if (!myConfig->header) {
@@ -210,13 +210,13 @@ void jwt_encoded_genrate_payload(JWTConfig *myConfig){
         return;
     }
 
-    cJSON_AddStringToObject(jsonPtr, "iss", myConfig->client_email);
-    cJSON_AddStringToObject(jsonPtr, "sub", myConfig->client_email);
+    cJSON_AddStringToObject(jsonPtr, esp_signer_gauth_pgm_str_24, myConfig->client_email);
+    cJSON_AddStringToObject(jsonPtr, esp_signer_gauth_pgm_str_25, myConfig->client_email);
 
-    cJSON_AddStringToObject(jsonPtr, "aud", "https://oauth2.googleapis.com/token");
-    cJSON_AddNumberToObject(jsonPtr, "iat", (int)now);
-    cJSON_AddNumberToObject(jsonPtr, "exp", (int)(now + 3600));
-    cJSON_AddStringToObject(jsonPtr, "scope", "https://www.googleapis.com/auth/cloud-platform https://www.googleapis.com/auth/userinfo.email");
+    cJSON_AddStringToObject(jsonPtr, esp_signer_gauth_pgm_str_47, googleapis_auth2_url);
+    cJSON_AddNumberToObject(jsonPtr, esp_signer_gauth_pgm_str_31, (int)now);
+    cJSON_AddNumberToObject(jsonPtr, esp_signer_gauth_pgm_str_32, (int)(now + 3600));
+    cJSON_AddStringToObject(jsonPtr, esp_signer_gauth_pgm_str_33, googleapis_scope_url);
 
     myConfig->payload = cJSON_PrintUnformatted(jsonPtr); 
     myConfig->encPayload = base64_encode((unsigned char *)myConfig->payload, strlen(myConfig->payload));

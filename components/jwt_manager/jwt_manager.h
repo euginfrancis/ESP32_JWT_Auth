@@ -36,7 +36,8 @@
 #define CREATE_CHAR_BUFFER(size) ((char *)malloc(size))
 static const char base64EncBuff[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 static const char googleapis_auth_url[] = "https://www.googleapis.com/oauth2/v4/token";
-
+static const char googleapis_auth2_url[] = "https://oauth2.googleapis.com/token";
+static const char googleapis_scope_url[] = "https://www.googleapis.com/auth/cloud-platform https://www.googleapis.com/auth/userinfo.email";
 static const char esp_signer_gauth_pgm_str_1[]  = "type";
 static const char esp_signer_gauth_pgm_str_2[]  = "service_account";
 static const char esp_signer_gauth_pgm_str_3[]  = "project_id";
@@ -78,6 +79,7 @@ static const char esp_signer_gauth_pgm_str_43[]  = "error_description";
 static const char esp_signer_gauth_pgm_str_44[]  = "access_token";
 static const char esp_signer_gauth_pgm_str_45[]  = "Bearer ";
 static const char esp_signer_gauth_pgm_str_46[]  = "https://www.googleapis.com/auth/cloud-platform";
+static const char esp_signer_gauth_pgm_str_47[]  =  "aud";
 
 static const char esp_signer_pgm_str_1[]  = "\r\n";
 static const char esp_signer_pgm_str_2[]  = ".";
