@@ -33,7 +33,7 @@
 #include "wifi_manager.h"  
 #include "jwt_manager.h"
 
-#define CLIENT_EMAIL "YOUR CLIENT_EMAIL"   
+#define CLIENT_EMAIL "YOUR CLIENT EMAIL"   
 #include <stdio.h>
 
 const char PRIVATE_KEY[] = "-----BEGIN PRIVATE KEY-----\n"
@@ -56,17 +56,22 @@ void app_main(void) {
     ESP_LOGI(TAG,"wifi connect status :%s" ,is_Wifi_Connected() ? "Connected":"Disconnected");
 
     myConfig = new_JWTConfig();
-    myConfig->init_JWT_Auth(myConfig);
-    myConfig->client_email = CLIENT_EMAIL;
-    myConfig->hashSize = 32;
-    myConfig->signatureSize = 256;
-    myConfig->private_key = PRIVATE_KEY;
 
-    jwt_encoded_genrate_header(myConfig);
-    jwt_encoded_genrate_payload(myConfig);
-    jwt_gen_hash(myConfig);
-    sign_jwt(myConfig);
-    exchangeJwtForAccessToken(myConfig);
+    if(myConfig == NULL){
+        ESP_LOGE(TAG, "Failed to allocate memory for JWTConfig");
+    }else{
+        myConfig->init_JWT_Auth(myConfig);
+        myConfig->client_email = CLIENT_EMAIL;
+        myConfig->hashSize = 32;
+        myConfig->signatureSize = 256;
+        myConfig->private_key = PRIVATE_KEY;
+
+        jwt_encoded_genrate_header(myConfig);
+        jwt_encoded_genrate_payload(myConfig);
+        jwt_gen_hash(myConfig);
+        sign_jwt(myConfig);
+        exchangeJwtForAccessToken(myConfig);
+    }
 
     while (true) {
         vTaskDelay(pdMS_TO_TICKS(1000));  

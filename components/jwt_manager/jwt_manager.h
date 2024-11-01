@@ -33,7 +33,9 @@
 #include "cJSON.h"
 
 #define MBEDTLS_BASE64_ENCODE_OUTPUT(len) ((((len) + 2) / 3 * 4) + 1)
-#define CREATE_CHAR_BUFFER(size) ((char *)malloc(size))
+#define CREATE_CHAR_BUFFER(size) ((char *)malloc(size)) 
+#define ERROR_BUFFER_SIZE 100
+
 static const char base64EncBuff[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 static const char googleapis_auth_url[] = "https://www.googleapis.com/oauth2/v4/token";
 static const char googleapis_auth2_url[] = "https://oauth2.googleapis.com/token";
@@ -153,7 +155,7 @@ typedef struct JWTConfig{
 } JWTConfig;
 
 void init_JWT_Auth(JWTConfig *myConfig);
-static void concatStrings(char **str1, char *str2);
+static bool concatStrings(char **str1, char *str2);
 JWTConfig *new_JWTConfig();
 void exchangeJwtForAccessToken(JWTConfig *myConfig);
 void jwt_encoded_genrate_header(JWTConfig *myConfig);
@@ -161,7 +163,8 @@ void jwt_encoded_genrate_payload(JWTConfig *myConfig);
 void jwt_gen_hash(JWTConfig *myConfig);
 void sign_jwt(JWTConfig *myConfig);
 static time_t getTime();
-static void encodeUrl(char *encoded, unsigned char *string, size_t len);
+static bool encodeUrl(char *encoded, unsigned char *string, size_t len);
 static esp_err_t _http_event_handler(esp_http_client_event_t *evt);
+int mbedtls_error_log(int error);
 
 #endif 

@@ -81,10 +81,11 @@ const char *cacert = "-----BEGIN CERTIFICATE-----\n"
                     "-----END CERTIFICATE-----\n";
 
 
-static void encodeUrl(char *encoded, unsigned char *string, size_t len)
+static bool encodeUrl(char *encoded, unsigned char *string, size_t len)
 {
     size_t i;
     char *p = encoded;
+    if(!encoded || !string) return false;
     
     for (i = 0; i < len -2; i += 3)
     {
@@ -106,36 +107,42 @@ static void encodeUrl(char *encoded, unsigned char *string, size_t len)
         }
     }
     *p++ = '\0';
+    return true;
 }
 
-static void concatStrings(char **str1, char *str2) {
-    if(str2 == NULL){
-        return;
-    }
+static bool concatStrings(char **str1, char *str2) {
     
-    size_t totalLength = strlen(*str1) + strlen(str2) + 1;
-    char *combined = CREATE_CHAR_BUFFER(totalLength);
+    if (str2 == NULL) {
+        ESP_LOGI(TAG, "concatStrings: str2 is null");
+        return false;
+    }
 
+    size_t len1 = (*str1 != NULL) ? strlen(*str1) : 0;
+    size_t len2 = strlen(str2);
+    size_t totalLength = len1 + len2 + 1; 
+
+    char *combined = (char *)realloc(*str1,totalLength);  
+    
     if (combined == NULL) {
-        return; 
+        ESP_LOGI(TAG, "concatStrings: failed to allocate memory");
+        return false;
     }
-    strcpy(combined, *str1); 
-    strcat(combined, str2);
 
-    if(strlen(*str1) > 0){
-        free(*str1);
-    }
-    *str1 = combined;
+    *str1 = combined;  
+    strcpy(combined + len1, str2);  
+    return true;
 }
 
 JWTConfig *new_JWTConfig() {
-    JWTConfig *myConfig = malloc(sizeof(JWTConfig));
+    JWTConfig *myConfig = calloc(1,sizeof(JWTConfig));
     myConfig->init_JWT_Auth = init_JWT_Auth;
     return myConfig;
 }
 void init_JWT_Auth(JWTConfig *myConfig){
-    myConfig->token_error = false;
-    myConfig->token_ready = false;
+    if(myConfig){
+        myConfig->token_error = false;
+        myConfig->token_ready = false;
+    }
 }
 static time_t getTime() {
     ESP_LOGI(TAG, "Configuring time...");
@@ -160,7 +167,8 @@ static time_t getTime() {
 }
 
 static char* base64_encode(unsigned char *input, size_t length) {
-    size_t output_length;
+    if(!input || length <1) return NULL;
+
     char *output = CREATE_CHAR_BUFFER(MBEDTLS_BASE64_ENCODE_OUTPUT(length));
     if (!output) {
         ESP_LOGE(TAG, "Failed to allocate memory for Base64 output");
@@ -219,40 +227,80 @@ void jwt_encoded_genrate_payload(JWTConfig *myConfig){
     cJSON_AddStringToObject(jsonPtr, esp_signer_gauth_pgm_str_33, googleapis_scope_url);
 
     myConfig->payload = cJSON_PrintUnformatted(jsonPtr); 
+    if(myConfig->payload == NULL){
+        ESP_LOGE(TAG, "Failed to encode JSON to Base64");
+        cJSON_Delete(jsonPtr); 
+        return;
+    }
+
     myConfig->encPayload = base64_encode((unsigned char *)myConfig->payload, strlen(myConfig->payload));
+    if(myConfig->encPayload == NULL){
+        ESP_LOGE(TAG, "Failed to encode JSON to Base64");
+        free(myConfig->payload);
+        cJSON_Delete(jsonPtr);
+        return;
+    }
 
     concatStrings(&myConfig->encHeadPayload,esp_signer_gauth_pgm_str_35);
     concatStrings(&myConfig->encHeadPayload,myConfig->encPayload);
 
     //ESP_LOGI(TAG, "Encoded Payload: %s , %s", myConfig->payload,myConfig->encHeadPayload);
 
+    free(myConfig->payload); 
     free(myConfig->encPayload);  
     cJSON_Delete(jsonPtr); 
     return;
 }
 
+int mbedtls_error_log(int error){
+    if(error < 0){
+        char *error_buf = CREATE_CHAR_BUFFER(ERROR_BUFFER_SIZE);
+        if(error_buf == NULL){
+            ESP_LOGE(TAG,"Failed allocate memmory for error buff");
+            return error;
+        }
+        mbedtls_strerror(-error, error_buf, ERROR_BUFFER_SIZE);
+        ESP_LOGE(TAG,"Error: %s\n", error_buf); 
+        free(error_buf);
+    }
+    return error;
+}
+
 void jwt_gen_hash(JWTConfig *myConfig){
+    mbedtls_sha256_context sha_ctx;
+    mbedtls_sha256_init(&sha_ctx);
+
+    if(mbedtls_error_log(mbedtls_sha256_starts(&sha_ctx, 0))<0){
+        mbedtls_sha256_free(&sha_ctx);
+        return;
+    }
+
+    if(mbedtls_error_log(mbedtls_sha256_update(&sha_ctx, 
+                        (unsigned char *)myConfig->encHeadPayload, strlen(myConfig->encHeadPayload)))<0){
+        mbedtls_sha256_free(&sha_ctx);
+        return; 
+    }
+    
     myConfig->hash = CREATE_CHAR_BUFFER(myConfig->hashSize);
     if (myConfig->hash == NULL) {
         return;
     }
-    mbedtls_sha256_context sha_ctx;
-    mbedtls_sha256_init(&sha_ctx);
-    mbedtls_sha256_starts(&sha_ctx, 0); 
-    mbedtls_sha256_update(&sha_ctx, (unsigned char *)myConfig->encHeadPayload, strlen(myConfig->encHeadPayload));
-    mbedtls_sha256_finish(&sha_ctx, (unsigned char *)myConfig->hash);
+
+    if(mbedtls_error_log(mbedtls_sha256_finish(&sha_ctx, (unsigned char *)myConfig->hash))<0){
+        mbedtls_sha256_free(&sha_ctx);
+        return;
+    }
+
     mbedtls_sha256_free(&sha_ctx);
 }
 int my_rng(void *ctx, unsigned char *output, size_t len) {
     return mbedtls_ctr_drbg_random((mbedtls_ctr_drbg_context *)ctx, output, len);
 }
 
-void sign_jwt(JWTConfig *myConfig){
+void sign_jwt(JWTConfig *myConfig){  
     concatStrings(&myConfig->jwt,myConfig->encHeadPayload);
     free(myConfig->encHeadPayload);
     concatStrings(&myConfig->jwt,esp_signer_gauth_pgm_str_35);
-    char error_buf[100];
-
     mbedtls_pk_context pk;
     mbedtls_entropy_context entropy;
     mbedtls_ctr_drbg_context ctr_drbg;
@@ -260,48 +308,38 @@ void sign_jwt(JWTConfig *myConfig){
     mbedtls_pk_init(&pk);
     mbedtls_entropy_init(&entropy);
     mbedtls_ctr_drbg_init(&ctr_drbg);
-    const char* pers="MyEntropy";
 
-    int ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func , &entropy, NULL, 0);
-    if (ret != 0) {
-        mbedtls_strerror(-ret, error_buf, sizeof(error_buf));
-        ESP_LOGE(TAG,"Error: %s\n", error_buf); 
+    if(mbedtls_error_log(mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func , &entropy, NULL, 0))<0)return;
+
+    if(mbedtls_error_log(mbedtls_pk_parse_key(&pk, (const unsigned char *)myConfig->private_key, 
+                                strlen(myConfig->private_key) + 1, NULL, 0, mbedtls_ctr_drbg_random,
+                                &ctr_drbg))<0){
+        mbedtls_pk_free(&pk);
         return;
     }
+    ESP_LOGI(TAG, "Signing started");
+
+    size_t sig_len;
+
     myConfig->signature = CREATE_CHAR_BUFFER(MBEDTLS_MPI_MAX_SIZE);
     if (myConfig->signature == NULL) {
         ESP_LOGE(TAG,"Can allocate memmory for signature"); 
         return;    
     }
-    ret = mbedtls_pk_parse_key(&pk, (const unsigned char *)myConfig->private_key, strlen(myConfig->private_key) + 1, NULL, 0, mbedtls_ctr_drbg_random, &ctr_drbg);
-    if (ret != 0) {
-        mbedtls_strerror(-ret, error_buf, sizeof(error_buf));
-        ESP_LOGE(TAG,"Error: %s\n", error_buf); 
+
+    if(mbedtls_error_log(mbedtls_pk_sign(&pk, MBEDTLS_MD_SHA256, (const unsigned char *)myConfig->hash,
+                               myConfig->hashSize,  (unsigned char *)myConfig->signature,
+                               myConfig->signatureSize,&sig_len, mbedtls_ctr_drbg_random, &ctr_drbg))<0){
+        free(myConfig->signature);  
+        mbedtls_pk_free(&pk);       
         return;
     }
-
-    ESP_LOGI(TAG, "Signing started");
-
-    size_t sig_len;
-    ret = mbedtls_pk_sign(&pk, MBEDTLS_MD_SHA256, (const unsigned char *)myConfig->hash,
-                               myConfig->hashSize,  (unsigned char *)myConfig->signature,
-                               myConfig->signatureSize,&sig_len, mbedtls_ctr_drbg_random, &ctr_drbg);
     
     mbedtls_pk_free(&pk);
-
-    if (ret != 0) {
-        free(myConfig->signature); 
-        mbedtls_strerror(-ret, error_buf, sizeof(error_buf));
-        ESP_LOGE(TAG,"Error: %s\n", error_buf);         
-        return;
-    }
-
     myConfig->encSignature = base64_encode((unsigned char *)myConfig->signature,myConfig->signatureSize);
     free(myConfig->signature);
     concatStrings(&myConfig->jwt,myConfig->encSignature);
     free(myConfig->encSignature);
-    //ESP_LOGI(TAG, "JWT : %s",myConfig->jwt);
-    return; 
 }
 
 
@@ -323,6 +361,11 @@ static esp_err_t _http_event_handler(esp_http_client_event_t *evt) {
         case HTTP_EVENT_ON_DATA:
             if (!esp_http_client_is_chunked_response(evt->client)) {
                 char *response = (char *)malloc(evt->data_len + 1);
+                if(response == NULL){
+                    ESP_LOGE(TAG, "Failed to allocate memory for response");
+                    free(response);
+                    return ESP_FAIL; 
+                }
                 memcpy(response, evt->data, evt->data_len);
                 response[evt->data_len] = 0;
                 ESP_LOGI(TAG, "HTTP Response: %s", response);
@@ -359,7 +402,14 @@ static esp_err_t _http_event_handler(esp_http_client_event_t *evt) {
                     ESP_LOGE(TAG, "Failed to parse JSON response");
                     myConfig->token_error = true;
                 } else {
-                    myConfig->Access_Token_Response = json_response;
+                    cJSON *nameItem = cJSON_GetObjectItem(json_response, "access_token");
+                    if (nameItem != NULL && cJSON_IsString(nameItem)) {
+                        myConfig->Access_Token = cJSON_GetStringValue(nameItem);
+                        ESP_LOGI(TAG, "Acces Token parsed");
+                    } else {
+                        ESP_LOGE(TAG, "Can't find access_token item");
+                    }
+                    cJSON_Delete(json_response);
                     myConfig->token_ready = true;
                     ESP_LOGI(TAG, "Token parsed");
                 }
@@ -407,19 +457,12 @@ void exchangeJwtForAccessToken(JWTConfig *myConfig) {
     }
 
     esp_http_client_cleanup(client);
-
-    while(!((myConfig->token_ready) | (myConfig->token_error)));
     
-    if(myConfig->token_ready){
-        cJSON *nameItem = cJSON_GetObjectItem(myConfig->Access_Token_Response, "access_token");
-        if (nameItem != NULL && cJSON_IsString(nameItem)) {
-            myConfig->Access_Token = cJSON_GetStringValue(nameItem);
-            ESP_LOGI(TAG, "Acces Token parsed");
-            cJSON_Delete(myConfig->Access_Token_Response);
-        } else {
-            ESP_LOGE(TAG, "Can't find access_token item");
-        }
+    if(err != ESP_OK){
+        free(myConfig->jwt);
+        return;
     }
+    while(!((myConfig->token_ready) | (myConfig->token_error)));
     free(myConfig->jwt);
 }
 
