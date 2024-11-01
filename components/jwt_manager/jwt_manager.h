@@ -133,7 +133,16 @@ static const char esp_signer_pgm_str_47[]  = "code: ";
 static const char esp_signer_pgm_str_48[]  = ", message: ";
 static const char esp_signer_pgm_str_49[]  = "ready";
 
-typedef struct JWTConfig{
+typedef enum{
+    step_jwt_encoded_genrate_header,
+    step_jwt_encoded_genrate_payload,
+    step_jwt_gen_hash,
+    step_sign_jwt,
+    step_exchangeJwtForAccessToken,
+    step_valid_token_generated
+}jwt_generation_steps;
+
+typedef struct{
     char *header;
     char *payload;
     char *encHeader;
@@ -142,16 +151,21 @@ typedef struct JWTConfig{
     char *encSignature;
     char *signature;
     char *jwt;
+    char *hash;
+}JWTComponents;
+
+typedef struct JWTConfig{
+    JWTComponents jwt_components;
     bool token_ready;
     bool token_error;
+    bool time_sync_finished;
     const char *private_key;
     const char *client_email;
-    cJSON *Access_Token_Response;
     const char *Access_Token;
     size_t signatureSize;
-    char *hash;
     size_t hashSize;
     void (*init_JWT_Auth)(struct JWTConfig*);
+    jwt_generation_steps step;
 } JWTConfig;
 
 void init_JWT_Auth(JWTConfig *myConfig);

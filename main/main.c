@@ -32,9 +32,9 @@
 #include "nvs_flash.h"
 #include "wifi_manager.h"  
 #include "jwt_manager.h"
-
-#define CLIENT_EMAIL "YOUR CLIENT EMAIL"   
 #include <stdio.h>
+
+#define CLIENT_EMAIL "YOUR CLIENT_EMAIL" ;   
 
 const char PRIVATE_KEY[] = "-----BEGIN PRIVATE KEY-----\n"
                             "YOUR PRIVATE KEY"
@@ -66,11 +66,29 @@ void app_main(void) {
         myConfig->signatureSize = 256;
         myConfig->private_key = PRIVATE_KEY;
 
-        jwt_encoded_genrate_header(myConfig);
-        jwt_encoded_genrate_payload(myConfig);
-        jwt_gen_hash(myConfig);
-        sign_jwt(myConfig);
-        exchangeJwtForAccessToken(myConfig);
+        while(myConfig->step != step_valid_token_generated){
+            switch (myConfig->step)
+            {
+                case step_jwt_encoded_genrate_header:
+                    jwt_encoded_genrate_header(myConfig);  
+                break;
+                case step_jwt_encoded_genrate_payload:
+                    jwt_encoded_genrate_payload(myConfig);
+                break;
+                case step_jwt_gen_hash:
+                    jwt_gen_hash(myConfig);  
+                break;
+                case step_sign_jwt:
+                    sign_jwt(myConfig);  
+                break;
+                case step_exchangeJwtForAccessToken:
+                    exchangeJwtForAccessToken(myConfig); 
+                break;
+                case step_valid_token_generated:
+                    ;
+                break;
+            }
+        }      
     }
 
     while (true) {

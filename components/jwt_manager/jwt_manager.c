@@ -142,6 +142,8 @@ void init_JWT_Auth(JWTConfig *myConfig){
     if(myConfig){
         myConfig->token_error = false;
         myConfig->token_ready = false;
+        myConfig->step = step_jwt_encoded_genrate_header;
+        myConfig->time_sync_finished = false;
     }
 }
 static time_t getTime() {
@@ -189,28 +191,36 @@ void jwt_encoded_genrate_header(JWTConfig *myConfig){
     cJSON_AddItemToObject(jsonPtr, esp_signer_gauth_pgm_str_20, cJSON_CreateString("RS256")); 
     cJSON_AddItemToObject(jsonPtr, esp_signer_gauth_pgm_str_22, cJSON_CreateString("JWT"));   
 
-    myConfig->header = cJSON_PrintUnformatted(jsonPtr);
-    if (!myConfig->header) {
+    myConfig->jwt_components.header = cJSON_PrintUnformatted(jsonPtr);
+    if (!myConfig->jwt_components.header) {
         ESP_LOGE(TAG, "Failed to print JSON");
         cJSON_Delete(jsonPtr);
         return;
     }
 
-    myConfig->encHeader = base64_encode((unsigned char *)myConfig->header, strlen(myConfig->header));
-    if (!myConfig->encHeader) {
+    myConfig->jwt_components.encHeader = base64_encode((unsigned char *)myConfig->jwt_components.header, strlen(myConfig->jwt_components.header));
+    if (!myConfig->jwt_components.encHeader) {
         ESP_LOGE(TAG, "Failed to encode JSON to Base64");
-        free(myConfig->header);
+        free(myConfig->jwt_components.header);
         cJSON_Delete(jsonPtr);
         return;
     }
-    myConfig->encHeadPayload = myConfig->encHeader;
+    myConfig->jwt_components.encHeadPayload = myConfig->jwt_components.encHeader;
    // ESP_LOGI(TAG, "Encoded Header: %s , %s", myConfig->encHeadPayload,myConfig->header);
-    free(myConfig->header);
+    free(myConfig->jwt_components.header);
     cJSON_Delete(jsonPtr);
+    myConfig->step = step_jwt_encoded_genrate_payload;
 }
 
 void jwt_encoded_genrate_payload(JWTConfig *myConfig){
-    time_t now =  getTime(); 
+    time_t now;
+
+    if(!myConfig->time_sync_finished){
+        now =  getTime(); 
+        myConfig->time_sync_finished = true;
+    }else{
+        now = time(NULL);
+    }
     cJSON *jsonPtr = cJSON_CreateObject();
 
     if (!jsonPtr) {
@@ -226,30 +236,30 @@ void jwt_encoded_genrate_payload(JWTConfig *myConfig){
     cJSON_AddNumberToObject(jsonPtr, esp_signer_gauth_pgm_str_32, (int)(now + 3600));
     cJSON_AddStringToObject(jsonPtr, esp_signer_gauth_pgm_str_33, googleapis_scope_url);
 
-    myConfig->payload = cJSON_PrintUnformatted(jsonPtr); 
-    if(myConfig->payload == NULL){
+    myConfig->jwt_components.payload = cJSON_PrintUnformatted(jsonPtr); 
+    if(myConfig->jwt_components.payload == NULL){
         ESP_LOGE(TAG, "Failed to encode JSON to Base64");
         cJSON_Delete(jsonPtr); 
         return;
     }
 
-    myConfig->encPayload = base64_encode((unsigned char *)myConfig->payload, strlen(myConfig->payload));
-    if(myConfig->encPayload == NULL){
+    myConfig->jwt_components.encPayload = base64_encode((unsigned char *)myConfig->jwt_components.payload, strlen(myConfig->jwt_components.payload));
+    if(myConfig->jwt_components.encPayload == NULL){
         ESP_LOGE(TAG, "Failed to encode JSON to Base64");
-        free(myConfig->payload);
+        free(myConfig->jwt_components.payload);
         cJSON_Delete(jsonPtr);
         return;
     }
 
-    concatStrings(&myConfig->encHeadPayload,esp_signer_gauth_pgm_str_35);
-    concatStrings(&myConfig->encHeadPayload,myConfig->encPayload);
+    concatStrings(&myConfig->jwt_components.encHeadPayload,esp_signer_gauth_pgm_str_35);
+    concatStrings(&myConfig->jwt_components.encHeadPayload,myConfig->jwt_components.encPayload);
 
     //ESP_LOGI(TAG, "Encoded Payload: %s , %s", myConfig->payload,myConfig->encHeadPayload);
 
-    free(myConfig->payload); 
-    free(myConfig->encPayload);  
+    free(myConfig->jwt_components.payload); 
+    free(myConfig->jwt_components.encPayload);  
     cJSON_Delete(jsonPtr); 
-    return;
+    myConfig->step = step_jwt_gen_hash;
 }
 
 int mbedtls_error_log(int error){
@@ -276,31 +286,32 @@ void jwt_gen_hash(JWTConfig *myConfig){
     }
 
     if(mbedtls_error_log(mbedtls_sha256_update(&sha_ctx, 
-                        (unsigned char *)myConfig->encHeadPayload, strlen(myConfig->encHeadPayload)))<0){
+                        (unsigned char *)myConfig->jwt_components.encHeadPayload, strlen(myConfig->jwt_components.encHeadPayload)))<0){
         mbedtls_sha256_free(&sha_ctx);
         return; 
     }
     
-    myConfig->hash = CREATE_CHAR_BUFFER(myConfig->hashSize);
-    if (myConfig->hash == NULL) {
+    myConfig->jwt_components.hash = CREATE_CHAR_BUFFER(myConfig->hashSize);
+    if (myConfig->jwt_components.hash == NULL) {
         return;
     }
 
-    if(mbedtls_error_log(mbedtls_sha256_finish(&sha_ctx, (unsigned char *)myConfig->hash))<0){
+    if(mbedtls_error_log(mbedtls_sha256_finish(&sha_ctx, (unsigned char *)myConfig->jwt_components.hash))<0){
         mbedtls_sha256_free(&sha_ctx);
         return;
     }
 
     mbedtls_sha256_free(&sha_ctx);
+    myConfig->step = step_sign_jwt;
 }
 int my_rng(void *ctx, unsigned char *output, size_t len) {
     return mbedtls_ctr_drbg_random((mbedtls_ctr_drbg_context *)ctx, output, len);
 }
 
 void sign_jwt(JWTConfig *myConfig){  
-    concatStrings(&myConfig->jwt,myConfig->encHeadPayload);
-    free(myConfig->encHeadPayload);
-    concatStrings(&myConfig->jwt,esp_signer_gauth_pgm_str_35);
+    concatStrings(&myConfig->jwt_components.jwt,myConfig->jwt_components.encHeadPayload);
+    free(myConfig->jwt_components.encHeadPayload);
+    concatStrings(&myConfig->jwt_components.jwt,esp_signer_gauth_pgm_str_35);
     mbedtls_pk_context pk;
     mbedtls_entropy_context entropy;
     mbedtls_ctr_drbg_context ctr_drbg;
@@ -321,25 +332,26 @@ void sign_jwt(JWTConfig *myConfig){
 
     size_t sig_len;
 
-    myConfig->signature = CREATE_CHAR_BUFFER(MBEDTLS_MPI_MAX_SIZE);
-    if (myConfig->signature == NULL) {
+    myConfig->jwt_components.signature = CREATE_CHAR_BUFFER(MBEDTLS_MPI_MAX_SIZE);
+    if (myConfig->jwt_components.signature == NULL) {
         ESP_LOGE(TAG,"Can allocate memmory for signature"); 
         return;    
     }
 
-    if(mbedtls_error_log(mbedtls_pk_sign(&pk, MBEDTLS_MD_SHA256, (const unsigned char *)myConfig->hash,
-                               myConfig->hashSize,  (unsigned char *)myConfig->signature,
+    if(mbedtls_error_log(mbedtls_pk_sign(&pk, MBEDTLS_MD_SHA256, (const unsigned char *)myConfig->jwt_components.hash,
+                               myConfig->hashSize,  (unsigned char *)myConfig->jwt_components.signature,
                                myConfig->signatureSize,&sig_len, mbedtls_ctr_drbg_random, &ctr_drbg))<0){
-        free(myConfig->signature);  
+        free(myConfig->jwt_components.signature);  
         mbedtls_pk_free(&pk);       
         return;
     }
     
     mbedtls_pk_free(&pk);
-    myConfig->encSignature = base64_encode((unsigned char *)myConfig->signature,myConfig->signatureSize);
-    free(myConfig->signature);
-    concatStrings(&myConfig->jwt,myConfig->encSignature);
-    free(myConfig->encSignature);
+    myConfig->jwt_components.encSignature = base64_encode((unsigned char *)myConfig->jwt_components.signature,myConfig->signatureSize);
+    free(myConfig->jwt_components.signature);
+    concatStrings(&myConfig->jwt_components.jwt,myConfig->jwt_components.encSignature);
+    free(myConfig->jwt_components.encSignature);
+    myConfig->step = step_exchangeJwtForAccessToken;
 }
 
 
@@ -440,7 +452,7 @@ void exchangeJwtForAccessToken(JWTConfig *myConfig) {
     esp_http_client_handle_t client = esp_http_client_init(&config);
     char post_data[1024];
     snprintf(post_data, sizeof(post_data), 
-             "grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=%s", myConfig->jwt);
+             "grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=%s", myConfig->jwt_components.jwt);
 
     //ESP_LOGI(TAG, "Http POST DATA:%s",post_data);
 
@@ -459,10 +471,11 @@ void exchangeJwtForAccessToken(JWTConfig *myConfig) {
     esp_http_client_cleanup(client);
     
     if(err != ESP_OK){
-        free(myConfig->jwt);
+        free(myConfig->jwt_components.jwt);
         return;
     }
     while(!((myConfig->token_ready) | (myConfig->token_error)));
-    free(myConfig->jwt);
+    free(myConfig->jwt_components.jwt);
+    myConfig->step = step_valid_token_generated;
 }
 
